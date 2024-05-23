@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Tamagochat</title>
+		<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+	</head>
+
+	<body>
+		<div id="app">
+			<div class="tamagochi">
+				<div class="status">
+					<div class="gauge" v-for="(value, key) in gauges" :key="key">
+						<div class="gauge-label">
+							{{ key.charAt(0).toUpperCase() + key.slice(1) }}
+						</div>
+						<div class="gauge-container">
+							<div class="gauge-bar" :style="{ width: value + 'px' }"></div>
+						</div>
+					</div>
+				</div>
+				<div v-if="isDead" class="dead-message">
+					Le chat est mort. Rechargez la page.
+				</div>
+				<div class="cat" :style="catStyle">{{ animatedCat }}</div>
+				<div class="poops" v-if="poops.length > 0">
+					<div class="poop" v-for="(poop, index) in poops" :key="index">💩</div>
+				</div>
+				<div class="actions">
+					<button @click="feed" :disabled="isDead || isResting">Nourrir</button>
+					<button @click="play" :disabled="isDead || isResting">Jouer</button>
+					<button @click="heal" :disabled="isDead || isResting">Soigner</button>
+					<button @click="clean" :disabled="isDead">Nettoyer</button>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			const { ref, reactive, onMounted, createApp, watch, computed } = Vue;
+
+			createApp({
+				setup() {
+					const frames = [
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( >.< ) \n > ° <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( o.< ) \n > ^ <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+						" /\\_/\\  \n( o.o ) \n > ^ <  ",
+					];
+					const cat = ref(frames[0]);
+					const frameIndex = ref(0);
+					const hunger = ref(100);
+					const happiness = ref(100);
+					const energy = ref(100);
+					const health = ref(100);
+					const cleanliness = ref(100);
+					const isDead = ref(false);
+					const catPosition = ref(0);
+					const catPositionVertical = ref(0); // Déclaration de la position verticale du chat
+					const direction = ref(1);
+					const verticalDirection = ref(1); // Nouvelle variable pour le déplacement vertical
+					const poops = ref([]);
+					const isResting = ref(false);
+
+					const gauges = reactive({
+						hunger: hunger.value,
+						happiness: happiness.value,
+						energy: energy.value,
+						health: health.value,
+						cleanliness: cleanliness.value,
+					});
+
+					const feed = () => {
+						hunger.value = Math.min(hunger.value + 10, 100);
+						cleanliness.value = Math.max(cleanliness.value - 10, 0);
+						dropPoop();
+					};
+
+					const play = () => {
+						if (energy.value > 0) {
+							happiness.value = Math.min(happiness.value + 10, 100);
+							energy.value = Math.max(energy.value - 10, 0);
+							cleanliness.value = Math.max(cleanliness.value - 5, 0);
+							dropPoop();
+						}
+					};
+
+					const rest = () => {
+						// Ralentir la vitesse de diminution des valeurs des jauges pendant 5 secondes
+						const restDuration = 5000; // 5 secondes
+						const originalDecayRate = 0.7;
+						const restDecayRate = 0.35;
+
+						if (
+							hunger.value > 20 &&
+							happiness.value > 20 &&
+							energy.value > 20 &&
+							health.value > 20 &&
+							!isResting.value
+						) {
+							// Enregistrer les valeurs des jauges d'origine
+							const originalHungerValue = hunger.value;
+							const originalHappinessValue = happiness.value;
+							const originalHealthValue = health.value;
+
+							// Mettre à jour les valeurs des jauges pendant le repos
+							energy.value = Math.min(energy.value + 80, 100);
+							hunger.value = Math.min(hunger.value + 5, 100);
+
+							// Changer l'animation pour montrer que le chat se repose
+							isResting.value = true;
+
+							// Attendre la durée de repos
+							setTimeout(() => {
+								// Rétablir les valeurs des jauges à leur état d'origine
+								hunger.value = originalHungerValue;
+								happiness.value = originalHappinessValue;
+								health.value = originalHealthValue;
+								isResting.value = false;
+							}, restDuration);
+						}
+					};
+
+					const heal = () => {
+						health.value = Math.min(health.value + 10, 100);
+					};
+
+					const clean = () => {
+						cleanliness.value = Math.min(cleanliness.value + 20, 100);
+						poops.value = [];
+					};
+
+					const dropPoop = () => {
+						if (cleanliness.value <= 50 && Math.random() < 0.3) {
+							poops.value.push({ left: catPosition.value + "px" });
+						}
+					};
+
+					const updateCatAnimation = () => {
+						frameIndex.value = (frameIndex.value + 1) % frames.length;
+						cat.value = frames[frameIndex.value];
+					};
+
+					const updateCatStatus = () => {
+						if (
+							hunger.value <= 0 ||
+							happiness.value <= 0 ||
+							energy.value <= 0 ||
+							health.value <= 0
+						) {
+							cat.value = " /\\_/\\  \n( x.x ) \n > ^ <  ";
+							isDead.value = true;
+						} else if (isResting.value) {
+							cat.value = " /\\_/\\  \n    ( -.- ) zzz \n > ° <  ";
+						} else if (
+							hunger.value < 20 ||
+							happiness.value < 20 ||
+							energy.value < 20 ||
+							health.value < 20 ||
+							cleanliness.value < 20
+						) {
+							cat.value = " /\\_/\\  \n( x.o ) \n > - <  ";
+						} else {
+							updateCatAnimation();
+						}
+					};
+
+					const moveCat = () => {
+						const changeDirectionProbability = 0.1; // Probabilité de changer de direction
+
+						// Changer de direction horizontalement
+						if (!isResting.value) {
+							if (
+								Math.random() < changeDirectionProbability ||
+								catPosition.value >= 100 ||
+								catPosition.value <= 0
+							) {
+								direction.value *= -1; // Changer la direction horizontale du chat
+							}
+
+							// Changer de direction verticalement
+							if (
+								Math.random() < changeDirectionProbability ||
+								catPositionVertical.value >= 100 || // Utiliser catPositionVertical pour la condition verticale
+								catPositionVertical.value <= 0 // Utiliser catPositionVertical pour la condition verticale
+							) {
+								verticalDirection.value *= -1; // Changer la direction verticale du chat
+							}
+
+							// Mettre à jour la position horizontale du chat
+							catPosition.value += direction.value * 10;
+
+							// Mettre à jour la position verticale du chat
+							catPositionVertical.value += verticalDirection.value * 10; // Utiliser catPositionVertical pour la position verticale
+
+							// Limiter la position du chat entre 0 et 100
+							catPosition.value = Math.max(0, Math.min(100, catPosition.value));
+							catPositionVertical.value = Math.max(
+								0,
+								Math.min(100, catPositionVertical.value)
+							); // Limiter la position verticale du chat entre 0 et 100
+						}
+					};
+					onMounted(() => {
+
+						setInterval(() => {
+							if (!isDead.value) {
+								hunger.value = Math.max(hunger.value - 1, 0);
+								happiness.value = Math.max(happiness.value - 0.5, 0);
+								energy.value = Math.max(energy.value - 0.7, 0);
+								health.value = Math.max(health.value - 0.3, 0);
+								cleanliness.value = Math.max(cleanliness.value - 0.2, 0);
+								updateCatStatus();
+								moveCat();
+							}
+						}, 500);
+
+                        setInterval(rest, Math.random() * (40000 - 30000) + 5000);
+					});
+
+					watch(
+						[hunger, happiness, energy, health, cleanliness],
+						(newValues) => {
+							gauges.hunger = newValues[0];
+							gauges.happiness = newValues[1];
+							gauges.energy = newValues[2];
+							gauges.health = newValues[3];
+							gauges.cleanliness = newValues[4];
+						}
+					);
+
+					return {
+						animatedCat: cat,
+						hunger,
+						happiness,
+						energy,
+						health,
+						cleanliness,
+						gauges,
+						isDead,
+						isResting,
+						poops,
+						catStyle: computed(() => ({
+							transform: `translate(${catPosition.value}px, ${catPositionVertical.value}px)`, // Modification pour le déplacement vertical
+							transition: "transform 1s",
+						})),
+						feed,
+						play,
+						rest,
+						heal,
+						clean,
+					};
+				},
+			}).mount("#app");
+		</script>
+
+		<style>
+			.tamagochi {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				font-family: "Courier New", Courier, monospace;
+			}
+
+			.cat {
+				position: absolute;
+				font-size: 16px;
+				white-space: pre;
+				text-align: center;
+				margin: 20px;
+				line-height: 1.2;
+			}
+
+			.poops {
+				display: flex;
+				gap: 10px;
+				margin: 10px;
+                position: absolute;
+                top: 150px;
+			}
+
+			.poop {
+				font-size: 20px;
+			}
+
+			.status {
+				margin: 10px;
+				width: 80%;
+			}
+
+			.gauge {
+				margin: 10px 0;
+			}
+
+			.gauge-label {
+				font-weight: bold;
+				margin-bottom: 5px;
+			}
+
+			.gauge-container {
+				width: 100px;
+				height: 20px;
+				background-color: lightgray;
+				border-radius: 10px;
+				overflow: hidden;
+				position: relative;
+			}
+
+			.gauge-bar {
+				height: 100%;
+				background-color: green;
+				transition: width 0.5s;
+			}
+
+			.actions {
+				display: flex;
+				gap: 10px;
+			}
+
+			button {
+				padding: 10px;
+				font-size: 16px;
+				cursor: pointer;
+			}
+
+			.dead-message {
+				font-size: 20px;
+				color: red;
+				text-align: center;
+				margin: 20px;
+			}
+		</style>
+	</body>
+</html>
