@@ -12,11 +12,9 @@
 			<div class="tamagochi">
 				<div class="status">
 					<div class="gauge" v-for="(value, key) in gauges" :key="key">
-						<div class="gauge-label">
-							{{ key.charAt(0).toUpperCase() + key.slice(1) }}
-						</div>
+						<div class="gauge-label">{{ key.charAt(0).toUpperCase() + key.slice(1) }}</div>
 						<div class="gauge-container">
-							<div class="gauge-bar" :style="{ width: value + 'px' }"></div>
+							[{{ '#'.repeat(Math.floor(value / 10)) + '-'.repeat(Math.floor((100 - value) / 10)) }}]
 						</div>
 					</div>
 				</div>
@@ -25,13 +23,28 @@
 				</div>
 				<div class="cat" :style="catStyle">{{ animatedCat }}</div>
 				<div class="poops" v-if="poops.length > 0">
-					<div class="poop" v-for="(poop, index) in poops" :key="index">💩</div>
+					<div
+						class="poop"
+						v-for="(poop, index) in poops"
+						:key="index"
+						:style="{ left: poop.left, top: poop.top, position: 'absolute' }"
+					>
+					╭&╮
+					</div>
 				</div>
 				<div class="actions">
-					<button @click="feed" :disabled="isDead || isResting">Nourrir</button>
-					<button @click="play" :disabled="isDead || isResting">Jouer</button>
-					<button @click="heal" :disabled="isDead || isResting">Soigner</button>
-					<button @click="clean" :disabled="isDead">Nettoyer</button>
+					<div>🍖
+						<button @click="feed" :disabled="isDead || isResting"></button>
+					</div>
+					<div>🧶
+						<button @click="play" :disabled="isDead || isResting"></button>
+					</div>
+					<div>🩹
+						<button @click="heal" :disabled="isDead || isResting"></button>
+					</div>
+					<div>🧼
+						<button @click="clean" :disabled="isDead"></button>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -56,11 +69,10 @@
 					];
 					const cat = ref(frames[0]);
 					const frameIndex = ref(0);
-					const hunger = ref(100);
-					const happiness = ref(100);
-					const energy = ref(100);
-					const health = ref(100);
-					const cleanliness = ref(100);
+					const faim = ref(100);
+					const joie = ref(100);
+					const energie = ref(100);
+					const santé = ref(100);
 					const isDead = ref(false);
 					const catPosition = ref(0);
 					const catPositionVertical = ref(0); // Déclaration de la position verticale du chat
@@ -70,24 +82,21 @@
 					const isResting = ref(false);
 
 					const gauges = reactive({
-						hunger: hunger.value,
-						happiness: happiness.value,
-						energy: energy.value,
-						health: health.value,
-						cleanliness: cleanliness.value,
+						faim: faim.value,
+						joie: joie.value,
+						energie: energie.value,
+						santé: santé.value,
 					});
 
 					const feed = () => {
-						hunger.value = Math.min(hunger.value + 10, 100);
-						cleanliness.value = Math.max(cleanliness.value - 10, 0);
+						faim.value = Math.min(faim.value + 10, 100);
 						dropPoop();
 					};
 
 					const play = () => {
-						if (energy.value > 0) {
-							happiness.value = Math.min(happiness.value + 10, 100);
-							energy.value = Math.max(energy.value - 10, 0);
-							cleanliness.value = Math.max(cleanliness.value - 5, 0);
+						if (energie.value > 0) {
+							joie.value = Math.min(joie.value + 10, 100);
+							energie.value = Math.max(energie.value - 10, 0);
 							dropPoop();
 						}
 					};
@@ -99,20 +108,20 @@
 						const restDecayRate = 0.35;
 
 						if (
-							hunger.value > 20 &&
-							happiness.value > 20 &&
-							energy.value > 20 &&
-							health.value > 20 &&
+							faim.value > 20 &&
+							joie.value > 20 &&
+							// energie.value > 20 &&
+							santé.value > 20 &&
 							!isResting.value
 						) {
 							// Enregistrer les valeurs des jauges d'origine
-							const originalHungerValue = hunger.value;
-							const originalHappinessValue = happiness.value;
-							const originalHealthValue = health.value;
+							const originalfaimValue = faim.value;
+							const originaljoieValue = joie.value;
+							const originalsantéValue = santé.value;
 
 							// Mettre à jour les valeurs des jauges pendant le repos
-							energy.value = Math.min(energy.value + 80, 100);
-							hunger.value = Math.min(hunger.value + 5, 100);
+							energie.value = Math.min(energie.value + 70, 100);
+							faim.value = Math.min(faim.value + 5, 100);
 
 							// Changer l'animation pour montrer que le chat se repose
 							isResting.value = true;
@@ -120,26 +129,37 @@
 							// Attendre la durée de repos
 							setTimeout(() => {
 								// Rétablir les valeurs des jauges à leur état d'origine
-								hunger.value = originalHungerValue;
-								happiness.value = originalHappinessValue;
-								health.value = originalHealthValue;
+								faim.value = originalfaimValue;
+								joie.value = originaljoieValue;
+								santé.value = originalsantéValue;
 								isResting.value = false;
 							}, restDuration);
 						}
 					};
 
 					const heal = () => {
-						health.value = Math.min(health.value + 10, 100);
+						santé.value = Math.min(santé.value + 10, 100);
 					};
 
 					const clean = () => {
-						cleanliness.value = Math.min(cleanliness.value + 20, 100);
+						// Mettre à jour la joie en fonction du nombre de poops nettoyés
+						joie.value = Math.min(joie.value + poops.value.length * 20, 100);
+
+						// Mettre à jour la santé en fonction du nombre de poops nettoyés
+						santé.value = Math.min(santé.value + poops.value.length * 10, 100);
+
+						// Effacer la liste des poops
 						poops.value = [];
 					};
 
 					const dropPoop = () => {
-						if (cleanliness.value <= 50 && Math.random() < 0.3) {
-							poops.value.push({ left: catPosition.value + "px" });
+						if (Math.random() < 0.3) {
+							// Ajouter un nouveau caca à la position actuelle du chat
+							poops.value.push({
+								left: `${catPosition.value - 20}px`,
+								top: `${catPositionVertical.value - 100}px`,
+							});
+							joie.value = Math.max(joie.value - 20, 0);
 						}
 					};
 
@@ -150,21 +170,20 @@
 
 					const updateCatStatus = () => {
 						if (
-							hunger.value <= 0 ||
-							happiness.value <= 0 ||
-							energy.value <= 0 ||
-							health.value <= 0
+							faim.value <= 0 ||
+							joie.value <= 0 ||
+							energie.value <= 0 ||
+							santé.value <= 0
 						) {
 							cat.value = " /\\_/\\  \n( x.x ) \n > ^ <  ";
 							isDead.value = true;
 						} else if (isResting.value) {
 							cat.value = " /\\_/\\  \n    ( -.- ) zzz \n > ° <  ";
 						} else if (
-							hunger.value < 20 ||
-							happiness.value < 20 ||
-							energy.value < 20 ||
-							health.value < 20 ||
-							cleanliness.value < 20
+							faim.value < 20 ||
+							joie.value < 20 ||
+							energie.value < 20 ||
+							santé.value < 20
 						) {
 							cat.value = " /\\_/\\  \n( x.o ) \n > - <  ";
 						} else {
@@ -209,40 +228,33 @@
 						}
 					};
 					onMounted(() => {
-
 						setInterval(() => {
 							if (!isDead.value) {
-								hunger.value = Math.max(hunger.value - 1, 0);
-								happiness.value = Math.max(happiness.value - 0.5, 0);
-								energy.value = Math.max(energy.value - 0.7, 0);
-								health.value = Math.max(health.value - 0.3, 0);
-								cleanliness.value = Math.max(cleanliness.value - 0.2, 0);
+								faim.value = Math.max(faim.value - 1, 0);
+								joie.value = Math.max(joie.value - 0.5, 0);
+								energie.value = Math.max(energie.value - 0.7, 0);
+								santé.value = Math.max(santé.value - 0.3, 0);
 								updateCatStatus();
 								moveCat();
 							}
 						}, 500);
 
-                        setInterval(rest, Math.random() * (40000 - 30000) + 5000);
+						setInterval(rest, Math.random() * (20000 - 10000) + 10000);
 					});
 
-					watch(
-						[hunger, happiness, energy, health, cleanliness],
-						(newValues) => {
-							gauges.hunger = newValues[0];
-							gauges.happiness = newValues[1];
-							gauges.energy = newValues[2];
-							gauges.health = newValues[3];
-							gauges.cleanliness = newValues[4];
-						}
-					);
+					watch([faim, joie, energie, santé], (newValues) => {
+						gauges.faim = newValues[0];
+						gauges.joie = newValues[1];
+						gauges.energie = newValues[2];
+						gauges.santé = newValues[3];
+					});
 
 					return {
 						animatedCat: cat,
-						hunger,
-						happiness,
-						energy,
-						health,
-						cleanliness,
+						faim,
+						joie,
+						energie,
+						santé,
 						gauges,
 						isDead,
 						isResting,
@@ -282,8 +294,8 @@
 				display: flex;
 				gap: 10px;
 				margin: 10px;
-                position: absolute;
-                top: 150px;
+				position: absolute;
+				top: 150px;
 			}
 
 			.poop {
@@ -304,30 +316,28 @@
 				margin-bottom: 5px;
 			}
 
-			.gauge-container {
-				width: 100px;
-				height: 20px;
-				background-color: lightgray;
-				border-radius: 10px;
-				overflow: hidden;
-				position: relative;
-			}
-
-			.gauge-bar {
-				height: 100%;
-				background-color: green;
-				transition: width 0.5s;
-			}
-
 			.actions {
 				display: flex;
 				gap: 10px;
+				width: 100%;
+				justify-content: center;
+			}
+
+			.actions > div {
+				display:flex;
+				flex-direction: column;
+				align-items: center;
+				font-size: 30px;
 			}
 
 			button {
-				padding: 10px;
+				width: 40px;
+			    height: 40px;
 				font-size: 16px;
 				cursor: pointer;
+				border-radius: 50%;
+				border-color: black;
+				background-color: grey;
 			}
 
 			.dead-message {
